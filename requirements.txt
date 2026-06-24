@@ -1,0 +1,17 @@
+langchain
+langchain-groq
+langchain-community
+langgraph
+faiss-cpu
+chromadb
+neo4j
+pymongo
+beautifulsoup4
+requests
+spacy
+sentence-transformers
+ragas
+fastapi
+uvicorn
+python-dotenv
+tiktoken
