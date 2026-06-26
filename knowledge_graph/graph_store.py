@@ -1,72 +1,67 @@
 """
-Loads triples into Neo4j and provides query interface.
+In-memory knowledge graph using networkx. Saves/loads from JSON — no Neo4j needed.
 Run: python knowledge_graph/graph_store.py  (to ingest)
 """
 
 import os
 import json
-from neo4j import GraphDatabase
-from dotenv import load_dotenv
-
-load_dotenv()
+import networkx as nx
 
 TRIPLES_PATH = os.path.join(os.path.dirname(__file__), "../data/chunks/triples.json")
+GRAPH_PATH = os.path.join(os.path.dirname(__file__), "../data/chunks/graph.json")
+
+_graph: nx.DiGraph = None
+
+
+def _load_graph() -> nx.DiGraph:
+    global _graph
+    if _graph is not None:
+        return _graph
+    if os.path.exists(GRAPH_PATH):
+        with open(GRAPH_PATH) as f:
+            data = json.load(f)
+        _graph = nx.node_link_graph(data, edges="links")
+    else:
+        _graph = nx.DiGraph()
+    return _graph
 
 
 class KnowledgeGraph:
     def __init__(self):
-        self.driver = GraphDatabase.driver(
-            os.getenv("NEO4J_URI", "bolt://localhost:7687"),
-            auth=(os.getenv("NEO4J_USER", "neo4j"), os.getenv("NEO4J_PASSWORD", "password")),
-        )
-
-    def close(self):
-        self.driver.close()
+        self.g = _load_graph()
 
     def ingest_triples(self, triples: list[dict]):
-        with self.driver.session() as session:
-            for t in triples:
-                session.run(
-                    """
-                    MERGE (s:Entity {name: $subject})
-                    MERGE (o:Entity {name: $object})
-                    MERGE (s)-[r:RELATES {type: $relation, source: $source}]->(o)
-                    """,
-                    subject=t["subject"],
-                    object=t["object"],
-                    relation=t["relation"],
-                    source=t.get("source", ""),
-                )
+        for t in triples:
+            s, r, o = t["subject"], t["relation"], t["object"]
+            if s and o:
+                self.g.add_node(s)
+                self.g.add_node(o)
+                self.g.add_edge(s, o, relation=r, source=t.get("source", ""))
+        # Persist
+        data = nx.node_link_data(self.g, edges="links")
+        with open(GRAPH_PATH, "w") as f:
+            json.dump(data, f)
 
     def query_related(self, entity: str, limit: int = 10) -> list[dict]:
-        with self.driver.session() as session:
-            result = session.run(
-                """
-                MATCH (s:Entity)-[r:RELATES]->(o:Entity)
-                WHERE toLower(s.name) CONTAINS toLower($entity)
-                   OR toLower(o.name) CONTAINS toLower($entity)
-                RETURN s.name AS subject, r.type AS relation, o.name AS object
-                LIMIT $limit
-                """,
-                entity=entity,
-                limit=limit,
-            )
-            return [dict(row) for row in result]
+        g = self.g
+        entity_lower = entity.lower()
+        results = []
+        for s, o, attrs in g.edges(data=True):
+            if entity_lower in s.lower() or entity_lower in o.lower():
+                results.append({"subject": s, "relation": attrs.get("relation", ""), "object": o})
+            if len(results) >= limit:
+                break
+        return results
 
-    def query_path(self, from_entity: str, to_entity: str) -> list[dict]:
-        with self.driver.session() as session:
-            result = session.run(
-                """
-                MATCH path = shortestPath(
-                  (a:Entity {name: $from_e})-[*..5]-(b:Entity {name: $to_e})
-                )
-                RETURN [n IN nodes(path) | n.name] AS nodes,
-                       [r IN relationships(path) | r.type] AS relations
-                """,
-                from_e=from_entity,
-                to_e=to_entity,
-            )
-            return [dict(row) for row in result]
+    def query_path(self, from_entity: str, to_entity: str) -> list[str]:
+        try:
+            path = nx.shortest_path(self.g, from_entity, to_entity)
+            return path
+        except (nx.NetworkXNoPath, nx.NodeNotFound):
+            return []
+
+    def stats(self) -> dict:
+        return {"nodes": self.g.number_of_nodes(), "edges": self.g.number_of_edges()}
 
 
 def run():
@@ -74,17 +69,14 @@ def run():
         triples = json.load(f)
 
     kg = KnowledgeGraph()
-    print(f"Ingesting {len(triples)} triples into Neo4j...")
+    print(f"Ingesting {len(triples)} triples into local graph...")
     kg.ingest_triples(triples)
-    print("Done.")
+    print(f"Graph stats: {kg.stats()}")
 
-    # Quick test
-    results = kg.query_related("transformer")
-    print(f"\nSample query - 'transformer' relations:")
-    for r in results[:5]:
+    results = kg.query_related("neural network", limit=5)
+    print("\nSample — 'neural network' relations:")
+    for r in results:
         print(f"  {r['subject']} --[{r['relation']}]--> {r['object']}")
-
-    kg.close()
 
 
 if __name__ == "__main__":

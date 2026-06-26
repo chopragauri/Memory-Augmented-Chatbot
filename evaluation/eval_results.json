@@ -1,0 +1,41 @@
+{
+  "avg_context_relevance": 0.553,
+  "avg_context_recall": 0.639,
+  "per_question": [
+    {
+      "question": "What is retrieval-augmented generation?",
+      "context_relevance": 0.43,
+      "context_recall": 0.685
+    },
+    {
+      "question": "How does the transformer attention mechanism work?",
+      "context_relevance": 0.503,
+      "context_recall": 0.491
+    },
+    {
+      "question": "What is a knowledge graph?",
+      "context_relevance": 0.649,
+      "context_recall": 0.715
+    },
+    {
+      "question": "What is word2vec?",
+      "context_relevance": 0.639,
+      "context_recall": 0.737
+    },
+    {
+      "question": "What is reinforcement learning?",
+      "context_relevance": 0.581,
+      "context_recall": 0.696
+    },
+    {
+      "question": "What is deep learning?",
+      "context_relevance": 0.583,
+      "context_recall": 0.603
+    },
+    {
+      "question": "What are generative adversarial networks?",
+      "context_relevance": 0.486,
+      "context_recall": 0.544
+    }
+  ]
+}

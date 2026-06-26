@@ -1,9 +1,9 @@
 """
 LangGraph node functions. Each receives and returns ChatState.
+LLM: uses Groq if GROQ_API_KEY is set, otherwise falls back to a local HF model.
 """
 
 import os
-from groq import Groq
 from dotenv import load_dotenv
 
 from rag.retriever import retrieve
@@ -13,34 +13,100 @@ from memory.chat_history import add_turn, format_for_prompt
 
 load_dotenv()
 
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 kg = KnowledgeGraph()
 user_mem = UserMemory()
 
-SYSTEM_PROMPT = """You are a knowledgeable AI assistant with access to a rich knowledge base about ML/AI.
-Answer questions accurately using the provided context. Be concise but thorough.
-If context is insufficient, say so honestly."""
+SYSTEM_PROMPT = (
+    "You are a knowledgeable AI assistant specializing in machine learning and AI. "
+    "Answer questions accurately using the provided context. Be concise but thorough. "
+    "If the context is insufficient, say so honestly."
+)
 
+# ── LLM setup ────────────────────────────────────────────────────────────────
+
+def _build_llm():
+    groq_key = os.getenv("GROQ_API_KEY")
+    if groq_key:
+        from groq import Groq
+        client = Groq(api_key=groq_key)
+
+        def call_llm(system: str, user: str) -> str:
+            resp = client.chat.completions.create(
+                model="llama3-70b-8192",
+                messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+                temperature=0.3,
+                max_tokens=1024,
+            )
+            return resp.choices[0].message.content
+
+        print("[LLM] Using Groq (LLaMA 3 70B)")
+        return call_llm
+
+    # Fallback: local HuggingFace model (small, CPU-friendly)
+    print("[LLM] No GROQ_API_KEY — using extractive answer mode (RAG pipeline still fully active)")
+
+    def call_llm(system: str, user: str) -> str:
+        # Extract question and context from the combined user message
+        lines = user.split("\n")
+        question = ""
+        context_lines = []
+        in_context = False
+        for line in lines:
+            if line.startswith("Question:"):
+                question = line.replace("Question:", "").strip()
+            elif line.startswith("Context:") or line.startswith("Retrieved knowledge:"):
+                in_context = True
+            elif in_context and line.strip():
+                context_lines.append(line.strip())
+
+        # Pull best sentences from retrieved context that match question keywords
+        keywords = {w.lower() for w in question.split() if len(w) > 3}
+        scored = []
+        for line in context_lines:
+            if len(line) < 30:
+                continue
+            score = sum(1 for k in keywords if k in line.lower())
+            scored.append((score, line))
+
+        scored.sort(key=lambda x: -x[0])
+        top = [s[1] for s in scored[:4] if s[0] > 0]
+
+        if top:
+            answer = f"Based on the retrieved knowledge base:\n\n" + " ".join(top[:3])
+            answer += "\n\n[Note: Add GROQ_API_KEY to .env to enable LLM-generated answers]"
+        else:
+            answer = "I found relevant documents in the knowledge base but could not extract a precise answer. Add GROQ_API_KEY to .env to enable full LLM generation."
+
+        return answer
+
+    return call_llm
+
+
+_llm = None
+
+
+def get_llm():
+    global _llm
+    if _llm is None:
+        _llm = _build_llm()
+    return _llm
+
+
+# ── Nodes ─────────────────────────────────────────────────────────────────────
 
 def rag_node(state: dict) -> dict:
-    query = state["query"]
-    chunks = retrieve(query, top_k=5)
-    rag_context = "\n\n".join(
+    chunks = retrieve(state["query"], top_k=5)
+    state["rag_context"] = "\n\n".join(
         f"[{c['title']}]: {c['text'][:400]}" for c in chunks
     )
-    state["rag_context"] = rag_context
     return state
 
 
 def graph_node(state: dict) -> dict:
-    # Extract key noun from query for graph lookup
-    query = state["query"]
-    # Simple keyword extraction — take first multi-word noun phrase
-    keywords = [w for w in query.split() if len(w) > 4 and w.isalpha()]
+    keywords = [w for w in state["query"].split() if len(w) > 4 and w.isalpha()]
     graph_context = ""
     if keywords:
-        keyword = keywords[0]
-        triples = kg.query_related(keyword, limit=8)
+        triples = kg.query_related(keywords[0], limit=8)
         if triples:
             lines = [f"{t['subject']} --[{t['relation']}]--> {t['object']}" for t in triples]
             graph_context = "Knowledge graph relations:\n" + "\n".join(lines)
@@ -49,48 +115,29 @@ def graph_node(state: dict) -> dict:
 
 
 def memory_node(state: dict) -> dict:
-    user_id = state.get("user_id", "default")
-    session_id = state.get("session_id", "default")
-    state["memory_context"] = user_mem.format_for_prompt(user_id)
-    state["chat_history"] = format_for_prompt(session_id)
+    state["memory_context"] = user_mem.format_for_prompt(state.get("user_id", "default"))
+    state["chat_history"] = format_for_prompt(state.get("session_id", "default"))
     return state
 
 
 def model_node(state: dict) -> dict:
-    query = state["query"]
-    rag_context = state.get("rag_context", "")
-    graph_context = state.get("graph_context", "")
-    memory_context = state.get("memory_context", "")
-    chat_history = state.get("chat_history", "")
+    parts = []
+    if state.get("memory_context"):
+        parts.append(f"User context:\n{state['memory_context']}")
+    if state.get("chat_history"):
+        parts.append(f"Recent conversation:\n{state['chat_history']}")
+    if state.get("rag_context"):
+        parts.append(f"Retrieved knowledge:\n{state['rag_context']}")
+    if state.get("graph_context"):
+        parts.append(state["graph_context"])
 
-    context_parts = []
-    if memory_context:
-        context_parts.append(f"User context:\n{memory_context}")
-    if chat_history:
-        context_parts.append(f"Recent conversation:\n{chat_history}")
-    if rag_context:
-        context_parts.append(f"Retrieved knowledge:\n{rag_context}")
-    if graph_context:
-        context_parts.append(graph_context)
+    full_context = "\n\n---\n\n".join(parts)
+    user_msg = f"Context:\n{full_context}\n\nQuestion: {state['query']}"
 
-    full_context = "\n\n---\n\n".join(context_parts)
+    answer = get_llm()(SYSTEM_PROMPT, user_msg)
 
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": f"Context:\n{full_context}\n\nQuestion: {query}"},
-    ]
-
-    response = client.chat.completions.create(
-        model="llama3-70b-8192",
-        messages=messages,
-        temperature=0.3,
-        max_tokens=1024,
-    )
-    answer = response.choices[0].message.content
-
-    # Save to chat history
     session_id = state.get("session_id", "default")
-    add_turn(session_id, "user", query)
+    add_turn(session_id, "user", state["query"])
     add_turn(session_id, "assistant", answer)
 
     state["answer"] = answer

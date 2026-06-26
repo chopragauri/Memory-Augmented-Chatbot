@@ -1,68 +1,70 @@
 """
-Extracts (subject, relation, object) triples from chunks using Groq LLM.
+Extracts (subject, relation, object) triples from chunks using spaCy (fully offline).
+Uses dependency parsing: nsubj → ROOT verb → dobj/attr pattern.
 Run: python knowledge_graph/extractor.py
 """
 
 import os
 import json
-import re
-from groq import Groq
-from dotenv import load_dotenv
-
-load_dotenv()
+import spacy
 
 CHUNKS_PATH = os.path.join(os.path.dirname(__file__), "../data/chunks/all_chunks.json")
 TRIPLES_PATH = os.path.join(os.path.dirname(__file__), "../data/chunks/triples.json")
 
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-
-SYSTEM_PROMPT = """You are a knowledge graph builder. Given a text passage, extract factual relationships.
-Return ONLY a JSON array of triples, no explanation. Format:
-[{"subject": "...", "relation": "...", "object": "..."}]
-Extract at most 5 triples per passage. Focus on factual, general knowledge."""
+nlp = spacy.load("en_core_web_sm")
 
 
-def extract_triples(text: str) -> list[dict]:
-    try:
-        response = client.chat.completions.create(
-            model="llama3-8b-8192",
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": f"Extract triples from:\n\n{text[:1000]}"},
-            ],
-            temperature=0,
-            max_tokens=512,
-        )
-        raw = response.choices[0].message.content.strip()
-        # Extract JSON array from response
-        match = re.search(r"\[.*\]", raw, re.DOTALL)
-        if match:
-            return json.loads(match.group())
-    except Exception as e:
-        print(f"[error] {e}")
-    return []
+def extract_triples(text: str, source: str, title: str) -> list[dict]:
+    doc = nlp(text[:2000])
+    triples = []
+
+    for sent in doc.sents:
+        for token in sent:
+            if token.dep_ == "ROOT" and token.pos_ in ("VERB", "AUX"):
+                subjects = [c for c in token.children if c.dep_ in ("nsubj", "nsubjpass")]
+                objects = [c for c in token.children if c.dep_ in ("dobj", "attr", "pobj", "acomp")]
+
+                for subj in subjects:
+                    for obj in objects:
+                        subj_text = " ".join(t.text for t in subj.subtree if not t.is_stop or t == subj)
+                        obj_text = " ".join(t.text for t in obj.subtree if not t.is_stop or t == obj)
+                        relation = token.lemma_
+
+                        if len(subj_text) < 60 and len(obj_text) < 60:
+                            triples.append({
+                                "subject": subj_text.strip(),
+                                "relation": relation,
+                                "object": obj_text.strip(),
+                                "source": source,
+                                "title": title,
+                            })
+
+    return triples[:10]
 
 
 def run():
     with open(CHUNKS_PATH) as f:
         chunks = json.load(f)
 
-    # Process every 5th chunk to stay within rate limits
-    sampled = chunks[::5]
     all_triples = []
-
-    for i, chunk in enumerate(sampled):
-        print(f"[{i+1}/{len(sampled)}] {chunk['title']}")
-        triples = extract_triples(chunk["text"])
-        for t in triples:
-            t["source"] = chunk["source"]
-            t["title"] = chunk["title"]
+    for i, chunk in enumerate(chunks):
+        triples = extract_triples(chunk["text"], chunk["source"], chunk["title"])
         all_triples.extend(triples)
+        if (i + 1) % 20 == 0:
+            print(f"  processed {i+1}/{len(chunks)} chunks, {len(all_triples)} triples so far")
+
+    seen = set()
+    unique = []
+    for t in all_triples:
+        key = (t["subject"].lower(), t["relation"], t["object"].lower())
+        if key not in seen:
+            seen.add(key)
+            unique.append(t)
 
     with open(TRIPLES_PATH, "w") as f:
-        json.dump(all_triples, f, indent=2)
+        json.dump(unique, f, indent=2)
 
-    print(f"\nExtracted {len(all_triples)} triples → {TRIPLES_PATH}")
+    print(f"\nExtracted {len(unique)} unique triples → {TRIPLES_PATH}")
 
 
 if __name__ == "__main__":
