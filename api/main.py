@@ -1,11 +1,14 @@
 """
 FastAPI backend.
-Run: uvicorn api.main:app --reload
+Run: python3 -m uvicorn api.main:app --reload
 """
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from agent.graph import chat
 from memory.user_memory import UserMemory
@@ -37,6 +40,11 @@ class ChatResponse(BaseModel):
 class MemoryUpdateRequest(BaseModel):
     facts: list[str] = []
     preferences: list[str] = []
+
+
+@app.get("/", response_class=HTMLResponse)
+def index():
+    return open(os.path.join(os.path.dirname(__file__), "index.html")).read()
 
 
 @app.post("/chat", response_model=ChatResponse)

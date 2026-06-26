@@ -32,7 +32,7 @@ def _build_llm():
 
         def call_llm(system: str, user: str) -> str:
             resp = client.chat.completions.create(
-                model="llama3-70b-8192",
+                model="llama-3.3-70b-versatile",
                 messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
                 temperature=0.3,
                 max_tokens=1024,
