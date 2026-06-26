@@ -1,49 +1,49 @@
 """
-Long-term user memory backed by a local JSON file — no MongoDB needed.
-Drop-in replaceable with MongoDB later by swapping this class.
+Long-term user memory backed by Supabase (PostgreSQL).
 """
 
 import os
-import json
-from datetime import datetime
+from datetime import datetime, timezone
+from dotenv import load_dotenv
+from supabase import create_client
 
-MEMORY_PATH = os.path.join(os.path.dirname(__file__), "../data/user_memory.json")
+load_dotenv()
 
-
-def _load() -> dict:
-    if os.path.exists(MEMORY_PATH):
-        with open(MEMORY_PATH) as f:
-            return json.load(f)
-    return {}
+_client = None
 
 
-def _save(data: dict):
-    os.makedirs(os.path.dirname(MEMORY_PATH), exist_ok=True)
-    with open(MEMORY_PATH, "w") as f:
-        json.dump(data, f, indent=2)
+def _sb():
+    global _client
+    if _client is None:
+        _client = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
+    return _client
 
 
 class UserMemory:
     def get(self, user_id: str) -> dict:
-        store = _load()
-        return store.get(user_id, {"user_id": user_id, "preferences": [], "facts": [], "last_seen": None})
+        result = _sb().table("user_memory").select("*").eq("user_id", user_id).execute()
+        if result.data:
+            return result.data[0]
+        return {"user_id": user_id, "facts": [], "preferences": [], "last_seen": None}
 
     def update_facts(self, user_id: str, new_facts: list[str]):
-        store = _load()
-        user = store.get(user_id, {"preferences": [], "facts": []})
-        existing = set(user["facts"])
-        user["facts"] = list(existing | set(new_facts))
-        user["last_seen"] = datetime.utcnow().isoformat()
-        store[user_id] = user
-        _save(store)
+        existing = self.get(user_id)
+        merged = list(set(existing.get("facts") or []) | set(new_facts))
+        _sb().table("user_memory").upsert({
+            "user_id": user_id,
+            "facts": merged,
+            "preferences": existing.get("preferences") or [],
+            "last_seen": datetime.now(timezone.utc).isoformat(),
+        }, on_conflict="user_id").execute()
 
     def update_preferences(self, user_id: str, preferences: list[str]):
-        store = _load()
-        user = store.get(user_id, {"preferences": [], "facts": []})
-        user["preferences"] = preferences
-        user["last_seen"] = datetime.utcnow().isoformat()
-        store[user_id] = user
-        _save(store)
+        existing = self.get(user_id)
+        _sb().table("user_memory").upsert({
+            "user_id": user_id,
+            "facts": existing.get("facts") or [],
+            "preferences": preferences,
+            "last_seen": datetime.now(timezone.utc).isoformat(),
+        }, on_conflict="user_id").execute()
 
     def format_for_prompt(self, user_id: str) -> str:
         mem = self.get(user_id)

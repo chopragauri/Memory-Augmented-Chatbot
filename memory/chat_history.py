@@ -1,21 +1,43 @@
 """
-Tracks per-session conversation history (in-memory, can swap to Redis/Mongo).
+Per-session chat history backed by Supabase (PostgreSQL).
 """
 
-from collections import defaultdict
+import os
+from dotenv import load_dotenv
+from supabase import create_client
 
-_sessions: dict[str, list[dict]] = defaultdict(list)
-MAX_HISTORY = 10  # keep last N turns
+load_dotenv()
+
+_client = None
+MAX_HISTORY = 10
 
 
-def add_turn(session_id: str, role: str, content: str):
-    _sessions[session_id].append({"role": role, "content": content})
-    if len(_sessions[session_id]) > MAX_HISTORY * 2:
-        _sessions[session_id] = _sessions[session_id][-MAX_HISTORY * 2 :]
+def _sb():
+    global _client
+    if _client is None:
+        _client = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
+    return _client
+
+
+def add_turn(session_id: str, role: str, content: str, user_id: str = "default"):
+    _sb().table("chat_history").insert({
+        "session_id": session_id,
+        "user_id": user_id,
+        "role": role,
+        "content": content,
+    }).execute()
 
 
 def get_history(session_id: str) -> list[dict]:
-    return _sessions[session_id]
+    result = (
+        _sb().table("chat_history")
+        .select("role, content, created_at")
+        .eq("session_id", session_id)
+        .order("created_at", desc=False)
+        .limit(MAX_HISTORY * 2)
+        .execute()
+    )
+    return result.data or []
 
 
 def format_for_prompt(session_id: str) -> str:
@@ -23,7 +45,7 @@ def format_for_prompt(session_id: str) -> str:
     if not history:
         return ""
     lines = []
-    for msg in history[-6:]:  # last 3 turns
+    for msg in history[-6:]:
         role = "User" if msg["role"] == "user" else "Assistant"
         lines.append(f"{role}: {msg['content']}")
     return "\n".join(lines)

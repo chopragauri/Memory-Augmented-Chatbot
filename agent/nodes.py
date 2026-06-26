@@ -137,8 +137,9 @@ def model_node(state: dict) -> dict:
     answer = get_llm()(SYSTEM_PROMPT, user_msg)
 
     session_id = state.get("session_id", "default")
-    add_turn(session_id, "user", state["query"])
-    add_turn(session_id, "assistant", answer)
+    user_id = state.get("user_id", "default")
+    add_turn(session_id, "user", state["query"], user_id)
+    add_turn(session_id, "assistant", answer, user_id)
 
     state["answer"] = answer
     return state
