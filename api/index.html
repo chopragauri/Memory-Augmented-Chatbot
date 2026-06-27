@@ -4,6 +4,7 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Memory-Augmented Chatbot</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root {
       --bg: #0a0a14; --surface: #111120; --surface2: #1a1a2e; --surface3: #20203a;
@@ -144,9 +145,71 @@
     #kg-panel { flex: 1; overflow-y: auto; padding: 12px 14px; }
     #kg-panel h3 { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 10px; }
     #kg-stats { font-size: 11px; color: var(--muted); line-height: 1.9; }
+
+    /* ── AUTH OVERLAY ── */
+    #auth-overlay {
+      position: fixed; inset: 0; background: rgba(10,10,20,0.97);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1000; backdrop-filter: blur(8px);
+    }
+    #auth-box {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+      padding: 40px 36px; width: 380px; text-align: center;
+    }
+    #auth-box .auth-logo { font-size: 44px; margin-bottom: 12px; }
+    #auth-box h2 { font-size: 22px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+    #auth-box p  { font-size: 13px; color: var(--muted); margin-bottom: 28px; line-height: 1.6; }
+    .auth-btn {
+      width: 100%; padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 600;
+      cursor: pointer; border: none; display: flex; align-items: center; justify-content: center;
+      gap: 10px; margin-bottom: 12px; transition: opacity 0.2s;
+    }
+    .auth-btn:hover { opacity: 0.88; }
+    .auth-btn.google { background: white; color: #1f1f1f; }
+    .auth-btn.guest  { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+    .auth-btn.guest:hover { color: var(--text); border-color: var(--accent); }
+    .auth-divider { display: flex; align-items: center; gap: 10px; margin: 4px 0 16px; color: var(--muted); font-size: 12px; }
+    .auth-divider::before,.auth-divider::after { content:''; flex:1; height:1px; background:var(--border); }
+    .auth-note { font-size: 11px; color: var(--muted); margin-top: 16px; line-height: 1.6; }
+
+    /* ── USER BADGE in sidebar ── */
+    #user-badge {
+      display: none; align-items: center; gap: 9px; padding: 10px 12px;
+      border-top: 1px solid var(--border); background: var(--surface);
+    }
+    #user-badge img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
+    #user-badge .u-initials { width: 28px; height: 28px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: white; flex-shrink: 0; }
+    #user-badge .u-name  { font-size: 12px; color: var(--text); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #user-badge .u-label { font-size: 10px; color: var(--muted); }
+    #logout-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 13px; padding: 4px; }
+    #logout-btn:hover { color: var(--red); }
   </style>
 </head>
 <body>
+
+<!-- AUTH OVERLAY -->
+<div id="auth-overlay">
+  <div id="auth-box">
+    <div class="auth-logo">🧠</div>
+    <h2>Memory Chatbot</h2>
+    <p>RAG · Knowledge Graph · LLaMA 3.3 70B<br>Sign in to save your memory across sessions.</p>
+
+    <button class="auth-btn google" onclick="signInGoogle()">
+      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      Continue with Google
+    </button>
+
+    <div class="auth-divider">or</div>
+
+    <button class="auth-btn guest" onclick="continueAsGuest()">
+      👤 &nbsp;Continue as Guest
+    </button>
+
+    <div class="auth-note">
+      Guest sessions are stored locally.<br>Sign in to sync memory across devices.
+    </div>
+  </div>
+</div>
 
 <!-- LEFT SIDEBAR -->
 <div id="sidebar">
@@ -168,6 +231,15 @@
     <h3>User Memory</h3>
     <div id="mem-chips"><span style="font-size:11px;color:var(--muted)">No memory yet.</span></div>
     <button id="add-mem-btn" onclick="addMemoryPrompt()">+ Add fact about you</button>
+  </div>
+
+  <div id="user-badge">
+    <div id="u-avatar"></div>
+    <div style="flex:1;min-width:0">
+      <div class="u-name" id="u-name">Guest</div>
+      <div class="u-label" id="u-label">Guest session</div>
+    </div>
+    <button id="logout-btn" onclick="logout()" title="Sign out">⎋</button>
   </div>
 </div>
 
@@ -473,10 +545,81 @@
     loadMemory();
   }
 
+  // ── Supabase Auth ─────────────────────────────────────────────────────────
+  const SUPABASE_URL = 'https://zdumpzfflflpuwbbhjxj.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkdW1wemZmbGZscHV3YmJoanhqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0OTY0NTMsImV4cCI6MjA5ODA3MjQ1M30.FDVSdhKJak5IwhvL6pAMkvLXB1RvKGWdlCrbb3kVg1c';
+  const sbClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  async function signInGoogle() {
+    await sbClient.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin }
+    });
+  }
+
+  function continueAsGuest() {
+    let gid = localStorage.getItem('guest_uid');
+    if (!gid) { gid = 'guest_' + Math.random().toString(36).slice(2, 10); localStorage.setItem('guest_uid', gid); }
+    setUser(gid, 'Guest', null, true);
+  }
+
+  function setUser(uid, name, avatarUrl, isGuest) {
+    currentUid = uid;
+    document.getElementById('auth-overlay').style.display = 'none';
+    document.getElementById('user-badge').style.display = 'flex';
+    document.getElementById('u-name').textContent = name;
+    document.getElementById('u-label').textContent = isGuest ? 'Guest session' : 'Signed in with Google';
+
+    const avatarEl = document.getElementById('u-avatar');
+    if (avatarUrl) {
+      avatarEl.innerHTML = `<img src="${avatarUrl}" alt="${name}"/>`;
+    } else {
+      avatarEl.innerHTML = `<div class="u-initials">${name.slice(0,2).toUpperCase()}</div>`;
+    }
+
+    currentSid = genSid();
+    loadSessions();
+    loadMemory();
+  }
+
+  async function logout() {
+    await sbClient.auth.signOut();
+    localStorage.removeItem('guest_uid');
+    currentUid = null;
+    document.getElementById('auth-overlay').style.display = 'flex';
+    document.getElementById('user-badge').style.display = 'none';
+    chatEl.innerHTML = '';
+    document.getElementById('session-list').innerHTML = '<div id="session-empty">No conversations yet.</div>';
+    document.getElementById('mem-chips').innerHTML = '<span style="font-size:11px;color:var(--muted)">No memory yet.</span>';
+  }
+
   // ── Init ───────────────────────────────────────────────────────────────────
-  currentSid = genSid();
-  loadSessions();
-  loadMemory();
+  (async () => {
+    // Handle OAuth redirect
+    const { data: { session } } = await sbClient.auth.getSession();
+    if (session?.user) {
+      const u = session.user;
+      const name = u.user_metadata?.full_name || u.email?.split('@')[0] || 'User';
+      const avatar = u.user_metadata?.avatar_url || null;
+      setUser(u.id, name, avatar, false);
+    } else {
+      // Check guest
+      const gid = localStorage.getItem('guest_uid');
+      if (gid) {
+        setUser(gid, 'Guest', null, true);
+      }
+      // else show overlay (already visible by default)
+    }
+
+    // Listen for auth state changes (after Google redirect)
+    sbClient.auth.onAuthStateChange((_event, session) => {
+      if (session?.user && !currentUid) {
+        const u = session.user;
+        const name = u.user_metadata?.full_name || u.email?.split('@')[0] || 'User';
+        setUser(u.id, name, u.user_metadata?.avatar_url || null, false);
+      }
+    });
+  })();
 </script>
 </body>
 </html>
