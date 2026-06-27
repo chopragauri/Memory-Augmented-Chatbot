@@ -120,6 +120,33 @@ def memory_node(state: dict) -> dict:
     return state
 
 
+MEMORY_EXTRACT_PROMPT = (
+    "You are a memory extraction assistant. Given a user message and the assistant's reply, "
+    "extract any personal facts or preferences revealed about the USER (not the assistant). "
+    "Return ONLY a JSON array of short fact strings, e.g. [\"User is a data science student\", \"User prefers concise explanations\"]. "
+    "If there are no personal facts, return an empty array []. "
+    "Do not include facts about the topic being discussed — only facts about the person asking."
+)
+
+
+def _extract_and_save_memory(user_id: str, query: str, answer: str):
+    """Run a quick Groq call to extract user facts from this turn and persist them."""
+    import json
+    try:
+        llm = get_llm()
+        raw = llm(MEMORY_EXTRACT_PROMPT, f"User message: {query}\n\nAssistant reply: {answer[:500]}")
+        # Find JSON array in response
+        start, end = raw.find("["), raw.rfind("]")
+        if start == -1 or end == -1:
+            return
+        facts = json.loads(raw[start:end+1])
+        facts = [f for f in facts if isinstance(f, str) and len(f) > 5]
+        if facts:
+            user_mem.update_facts(user_id, facts)
+    except Exception:
+        pass  # Memory extraction is best-effort, never block the response
+
+
 def model_node(state: dict) -> dict:
     parts = []
     if state.get("memory_context"):
@@ -140,6 +167,9 @@ def model_node(state: dict) -> dict:
     user_id = state.get("user_id", "default")
     add_turn(session_id, "user", state["query"], user_id)
     add_turn(session_id, "assistant", answer, user_id)
+
+    # Auto-extract and persist user facts from this turn
+    _extract_and_save_memory(user_id, state["query"], answer)
 
     state["answer"] = answer
     return state
