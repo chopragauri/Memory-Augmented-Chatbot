@@ -138,6 +138,21 @@ Evaluation uses cosine similarity (no external API needed):
 
 Run: `python3 -m evaluation.eval`
 
+### Results (7 domain queries)
+
+| Query | Relevance | Recall | Top Source |
+|---|---|---|---|
+| What is RAG? | 0.430 | 0.685 | Retrieval-augmented generation |
+| How does transformer attention work? | 0.503 | 0.491 | Transformer (deep learning) |
+| What is a knowledge graph? | 0.649 | 0.715 | Knowledge graph |
+| What is Word2Vec? | 0.639 | 0.737 | Word2vec |
+| What is reinforcement learning? | 0.581 | 0.696 | Reinforcement learning |
+| What is deep learning? | 0.583 | 0.603 | Deep learning |
+| What are GANs? | 0.486 | 0.544 | Generative adversarial network |
+| **Average** | **0.553** | **0.639** | |
+
+> Metrics computed using cosine similarity between sentence-transformer embeddings of query, retrieved chunks, and generated answer — no external evaluation API required.
+
 ---
 
 ## Problem Statement Compliance
@@ -152,3 +167,24 @@ Run: `python3 -m evaluation.eval`
 | Evaluation metrics | ✅ Cosine similarity relevance + recall |
 | UI | ✅ 3-panel ChatGPT-style with pipeline visualization |
 | Domain-specific KB | ✅ 15 ML/AI Wikipedia articles, web-scraped |
+
+---
+
+## Screenshots
+
+<!-- Add screenshots here after recording -->
+
+### Login Screen (Google OAuth + Guest Mode)
+<!-- ![Login](assets/login.png) -->
+
+### Chat with Pipeline Visualization
+<!-- ![Chat](assets/chat.png) -->
+
+### Session History Sidebar
+<!-- ![Sessions](assets/sessions.png) -->
+
+### User Memory (different accounts)
+<!-- ![Memory](assets/memory.png) -->
+
+### Evaluation Results
+<!-- ![Eval](assets/eval.png) -->
