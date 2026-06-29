@@ -11,9 +11,17 @@
       --border: #252540; --accent: #6c63ff; --accent2: #a78bfa;
       --green: #10b981; --amber: #f59e0b; --blue: #3b82f6; --red: #ef4444;
       --text: #e2e8f0; --muted: #64748b; --user-bg: #4f46e5;
+      --code-bg: #0d1117; --code-text: #e6edf3;
+    }
+    [data-theme="light"] {
+      --bg: #f4f5fa; --surface: #ffffff; --surface2: #f0f1f7; --surface3: #e6e8f2;
+      --border: #dde0ec; --accent: #6c63ff; --accent2: #7c3aed;
+      --green: #059669; --amber: #d97706; --blue: #2563eb; --red: #dc2626;
+      --text: #1e293b; --muted: #64748b; --user-bg: #6c63ff;
+      --code-bg: #1e293b; --code-text: #e6edf3;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; transition: background 0.3s, color 0.3s; }
 
     /* ── LEFT SIDEBAR ── */
     #sidebar { width: 240px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; }
@@ -183,6 +191,78 @@
     #user-badge .u-label { font-size: 10px; color: var(--muted); }
     #logout-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 13px; padding: 4px; }
     #logout-btn:hover { color: var(--red); }
+
+    /* ── SESSION SEARCH ── */
+    #session-search-wrap { padding: 8px 12px 0; }
+    #session-search {
+      width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+      padding: 7px 10px; color: var(--text); font-size: 12px; outline: none; font-family: inherit;
+    }
+    #session-search:focus { border-color: var(--accent); }
+    #session-search::placeholder { color: var(--muted); }
+
+    /* Inline rename input */
+    .s-rename { flex: 1; background: var(--bg); border: 1px solid var(--accent); border-radius: 4px;
+      padding: 3px 6px; color: var(--text); font-size: 12px; outline: none; font-family: inherit; }
+    .session-item .s-edit { display: none; position: absolute; right: 30px; background: none; border: none;
+      color: var(--muted); cursor: pointer; font-size: 12px; padding: 2px 4px; }
+    .session-item:hover .s-edit { display: block; }
+    .session-item .s-edit:hover { color: var(--accent2); }
+
+    /* ── TOPBAR ICON BUTTONS ── */
+    .icon-btn { background: none; border: 1px solid var(--border); border-radius: 8px; color: var(--muted);
+      cursor: pointer; padding: 6px 9px; font-size: 13px; display: flex; align-items: center; gap: 5px;
+      transition: all 0.2s; }
+    .icon-btn:hover { color: var(--accent2); border-color: var(--accent); }
+    .icon-btn svg { width: 15px; height: 15px; }
+
+    /* ── MESSAGE ACTIONS ── */
+    .msg-actions { display: flex; gap: 4px; margin-top: 5px; padding: 0 2px; opacity: 0; transition: opacity 0.2s; }
+    .msg-wrap.bot:hover .msg-actions { opacity: 1; }
+    .act-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 12px;
+      padding: 3px 6px; border-radius: 5px; display: flex; align-items: center; gap: 3px; }
+    .act-btn:hover { background: var(--surface3); color: var(--accent2); }
+    .act-btn.active-up { color: var(--green); }
+    .act-btn.active-down { color: var(--red); }
+    .act-btn svg { width: 13px; height: 13px; }
+
+    /* ── MARKDOWN / CODE ── */
+    .msg.bot pre { background: var(--code-bg); border-radius: 8px; padding: 12px 14px; overflow-x: auto;
+      margin: 8px 0; font-size: 12.5px; line-height: 1.5; position: relative; }
+    .msg.bot pre code { color: var(--code-text); font-family: 'SF Mono', Consolas, monospace; background: none; padding: 0; }
+    .msg.bot code { background: var(--surface3); color: var(--accent2); padding: 1px 5px; border-radius: 4px;
+      font-family: 'SF Mono', Consolas, monospace; font-size: 12.5px; }
+    .msg.bot ul, .msg.bot ol { margin: 6px 0 6px 20px; }
+    .msg.bot li { margin: 3px 0; }
+    .msg.bot h3, .msg.bot h4 { margin: 10px 0 5px; font-size: 14px; color: var(--accent2); }
+    .code-copy { position: absolute; top: 6px; right: 6px; background: var(--surface3); border: none;
+      color: var(--muted); cursor: pointer; font-size: 10px; padding: 3px 7px; border-radius: 5px; }
+    .code-copy:hover { color: var(--text); }
+
+    /* ── TYPING CURSOR ── */
+    .stream-cursor { display: inline-block; width: 7px; height: 14px; background: var(--accent2);
+      margin-left: 2px; animation: blink 0.9s steps(2) infinite; vertical-align: text-bottom; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+    #stop-btn { display: none; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
+      color: var(--text); cursor: pointer; padding: 0 14px; height: 42px; font-size: 13px; flex-shrink: 0; }
+    #stop-btn:hover { border-color: var(--red); color: var(--red); }
+
+    /* ── ANIMATIONS ── */
+    .msg-wrap { animation: fadeInUp 0.35s ease; }
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .session-item { transition: background 0.18s; }
+    .chip { transition: all 0.2s; }
+    .chip:hover { transform: translateY(-1px); }
+    .mem-chip { animation: fadeInUp 0.3s ease; }
+
+    /* Keep topbar action buttons reachable on narrow widths */
+    @media (max-width: 900px) { #topbar .pipe-badge { display: none; } }
+
+    /* ── TOAST ── */
+    #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+      background: var(--surface3); border: 1px solid var(--border); color: var(--text); padding: 10px 18px;
+      border-radius: 10px; font-size: 13px; opacity: 0; pointer-events: none; transition: all 0.3s; z-index: 2000; }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   </style>
 </head>
 <body>
@@ -223,6 +303,10 @@
     New Chat
   </button>
 
+  <div id="session-search-wrap">
+    <input id="session-search" type="text" placeholder="🔍 Search conversations..." oninput="filterSessions(this.value)"/>
+  </div>
+
   <div id="session-list-wrap">
     <div id="session-list"><div id="session-empty">No conversations yet.</div></div>
   </div>
@@ -251,6 +335,10 @@
     <span class="pipe-badge kg">KG</span>
     <span class="pipe-badge mem">Memory</span>
     <span class="pipe-badge llm">LLaMA 3.3</span>
+    <button class="icon-btn" id="export-btn" onclick="exportChat()" title="Export conversation">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    </button>
+    <button class="icon-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle theme">🌙</button>
   </div>
 
   <div id="chat">
@@ -271,11 +359,14 @@
     <textarea id="input" placeholder="Ask about ML, transformers, RAG, deep learning..." rows="1"
       oninput="autoResize(this)"
       onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send()}"></textarea>
+    <button id="stop-btn" onclick="stopStreaming()">■ Stop</button>
     <button id="send-btn" onclick="send()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
     </button>
   </div>
 </div>
+
+<div id="toast"></div>
 
 <!-- RIGHT PANEL -->
 <div id="right-panel">
@@ -308,6 +399,8 @@
   let currentUid = 'gauri';
   let currentSid = null;
   let isNewChat = true;
+  let lastUserMsg = '';
+  let allSessions = [];
 
   const chatEl    = document.getElementById('chat');
   const inputEl   = document.getElementById('input');
@@ -319,11 +412,51 @@
   function now() { return new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}); }
   function esc(t) { return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   function fmt(text) {
-    return esc(text)
-      .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
-      .replace(/\n\n/g,'</p><p style="margin-top:10px">')
-      .replace(/\n(\d+\.\s)/g,'</p><p style="margin-top:6px">$1')
-      .replace(/\n/g,'<br>');
+    text = String(text);
+    // Extract fenced code blocks first so their contents aren't mangled
+    const blocks = [];
+    text = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (m, lang, code) => {
+      const i = blocks.length;
+      blocks.push(`<pre><button class="code-copy" onclick="copyCode(this)">Copy</button><code>${esc(code.replace(/\n$/,''))}</code></pre>`);
+      return `\n\nCODEBLOCK${i}ENDBLOCK\n\n`;
+    });
+
+    let html = esc(text)
+      .replace(/`([^`]+?)`/g, '<code>$1</code>')                    // inline code
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')             // bold
+      .replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>'); // italic
+
+    // Headings (### / ####)
+    html = html.replace(/^####\s+(.+)$/gm, '<h4>$1</h4>')
+               .replace(/^###\s+(.+)$/gm, '<h3>$1</h3>');
+
+    // Lists: group consecutive bullet / numbered lines
+    const lines = html.split('\n');
+    let out = '', inUl = false, inOl = false;
+    const closeLists = () => { if(inUl){out+='</ul>';inUl=false;} if(inOl){out+='</ol>';inOl=false;} };
+    for (let line of lines) {
+      if (/^\s*[-*]\s+/.test(line)) {
+        if(inOl){out+='</ol>';inOl=false;}
+        if(!inUl){out+='<ul>';inUl=true;}
+        out += '<li>' + line.replace(/^\s*[-*]\s+/, '') + '</li>';
+      } else if (/^\s*\d+\.\s+/.test(line)) {
+        if(inUl){out+='</ul>';inUl=false;}
+        if(!inOl){out+='<ol>';inOl=true;}
+        out += '<li>' + line.replace(/^\s*\d+\.\s+/, '') + '</li>';
+      } else {
+        closeLists();
+        out += line + '\n';
+      }
+    }
+    closeLists();
+
+    html = out.trim()
+      .replace(/\n{2,}/g, '</p><p style="margin-top:10px">')
+      .replace(/\n/g, '<br>');
+
+    // Restore code blocks
+    html = html.replace(/CODEBLOCK(\d+)ENDBLOCK/g, (m, i) => blocks[+i]);
+    return html;
   }
   function relativeTime(iso) {
     const d = new Date(iso), now = new Date();
@@ -370,9 +503,10 @@
     chatEl.appendChild(w); chatEl.scrollTop=chatEl.scrollHeight;
   }
 
-  function addBotMsg(data, skipScroll=false) {
+  function addBotMsg(data, skipScroll=false, stream=false) {
     document.getElementById('typing-wrap')?.remove();
     const w=document.createElement('div'); w.className='msg-wrap bot';
+    const answer = data.answer||data.content||'';
     const sources=data.sources||[], kgT=data.kg_triples||[], rel=data.context_relevance, rec=data.context_recall;
     let srcHtml='';
     if(sources.length>0){
@@ -380,12 +514,53 @@
       const metrics=(rel!==undefined)?`<div class="metrics-row"><span class="metric rel">Relevance ${Math.round(rel*100)}%</span><span class="metric rec">Recall ${Math.round(rec*100)}%</span></div>`:'';
       srcHtml=`<div class="sources"><div class="sources-header" onclick="toggleSrc(this)">📎 ${sources.length} sources used &nbsp;▸</div><div class="sources-body">${metrics}${chips}</div></div>`;
     }
-    w.innerHTML=`<div class="msg-label">Assistant</div><div class="msg bot">${fmt(data.answer||data.content||'')}</div><div class="msg-time">${now()}</div>${srcHtml}`;
+    const actionsHtml = `<div class="msg-actions">
+      <button class="act-btn" onclick="copyMsg(this)" title="Copy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+      <button class="act-btn" onclick="regenerate()" title="Regenerate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
+      <button class="act-btn" onclick="feedback(this,'up')" title="Good response"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg></button>
+      <button class="act-btn" onclick="feedback(this,'down')" title="Bad response"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg></button>
+    </div>`;
+    w.innerHTML=`<div class="msg-label">Assistant</div><div class="msg bot"></div><div class="msg-time">${now()}</div>${actionsHtml}${srcHtml}`;
+    const msgBody = w.querySelector('.msg.bot');
+    msgBody.dataset.raw = answer;
     chatEl.appendChild(w);
-    if(!skipScroll) chatEl.scrollTop=chatEl.scrollHeight;
+
     if(rel!==undefined){ document.getElementById('rel-val').textContent=Math.round(rel*100)+'%'; document.getElementById('rel-bar').style.width=Math.round(rel*100)+'%'; document.getElementById('rec-val').textContent=Math.round(rec*100)+'%'; document.getElementById('rec-bar').style.width=Math.round(rec*100)+'%'; }
     if(kgT.length>0) setKG(kgT);
     donePipeline();
+
+    if(stream){ typewriter(msgBody, answer, skipScroll); }
+    else { msgBody.innerHTML = fmt(answer); if(!skipScroll) chatEl.scrollTop=chatEl.scrollHeight; }
+  }
+
+  // ── Typewriter streaming (client-side reveal of the returned answer) ─────────
+  let streamTimer = null;
+  function typewriter(el, fullText, skipScroll) {
+    const words = fullText.split(/(\s+)/); // keep whitespace tokens
+    let i = 0;
+    document.getElementById('stop-btn').style.display = 'block';
+    document.getElementById('send-btn').style.display = 'none';
+    el.innerHTML = '<span class="stream-cursor"></span>';
+    streamTimer = setInterval(() => {
+      if(i >= words.length){ finishStream(el, fullText); return; }
+      const shown = words.slice(0, i+1).join('');
+      el.innerHTML = esc(shown) + '<span class="stream-cursor"></span>';
+      i++;
+      if(!skipScroll) chatEl.scrollTop = chatEl.scrollHeight;
+    }, 18);
+  }
+  function finishStream(el, fullText) {
+    clearInterval(streamTimer); streamTimer = null;
+    el.innerHTML = fmt(fullText);
+    document.getElementById('stop-btn').style.display = 'none';
+    document.getElementById('send-btn').style.display = 'flex';
+    chatEl.scrollTop = chatEl.scrollHeight;
+  }
+  function stopStreaming() {
+    if(streamTimer){
+      const el = [...document.querySelectorAll('.msg.bot')].pop();
+      finishStream(el, el.dataset.raw);
+    }
   }
 
   function toggleSrc(el){
@@ -435,6 +610,7 @@
             <span class="s-icon">💬</span>
             <span class="s-title">${esc(s.title)}</span>
             <span class="s-time">${relativeTime(s.updated_at)}</span>
+            <button class="s-edit" onclick="renameSession(event,'${esc(s.id)}')" title="Rename">✎</button>
             <button class="s-delete" onclick="deleteSession(event,'${esc(s.id)}')">🗑</button>
           </div>`;
       });
@@ -503,13 +679,15 @@
   function useSuggestion(el) { inputEl.value=el.textContent; inputEl.focus(); send(); }
 
   // ── Send ───────────────────────────────────────────────────────────────────
-  async function send() {
-    const msg = inputEl.value.trim();
+  async function send(rerun) {
+    const msg = rerun || inputEl.value.trim();
     if(!msg || btnEl.disabled) return;
     if(!currentSid) currentSid = genSid();
-    inputEl.value=''; inputEl.style.height='auto'; btnEl.disabled=true;
+    lastUserMsg = msg;
+    if(!rerun){ inputEl.value=''; inputEl.style.height='auto'; }
+    btnEl.disabled=true;
 
-    addUserMsg(msg);
+    if(!rerun) addUserMsg(msg);
     addTyping();
     setPipeline('memory');
 
@@ -520,7 +698,7 @@
       const res=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:currentUid,session_id:currentSid,message:msg})});
       clearInterval(iv);
       const data=await res.json();
-      addBotMsg(data);
+      addBotMsg(data, false, true);
       // Update title on first message
       if(isNewChat){ titleEl.textContent=msg.slice(0,50); isNewChat=false; }
       loadSessions();
@@ -550,6 +728,102 @@
     if(!fact) return;
     await fetch(`/memory/${currentUid}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({facts:[fact]})});
     loadMemory();
+  }
+
+  // ── Toast ────────────────────────────────────────────────────────────────
+  let toastTimer = null;
+  function toast(msg){
+    const t=document.getElementById('toast');
+    t.textContent=msg; t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer=setTimeout(()=>t.classList.remove('show'), 1800);
+  }
+
+  // ── Message actions ──────────────────────────────────────────────────────
+  function copyMsg(btn){
+    const raw = btn.closest('.msg-wrap').querySelector('.msg.bot').dataset.raw || '';
+    navigator.clipboard.writeText(raw); toast('Copied to clipboard');
+  }
+  function copyCode(btn){
+    navigator.clipboard.writeText(btn.nextElementSibling.textContent);
+    btn.textContent='Copied!'; setTimeout(()=>btn.textContent='Copy',1200);
+  }
+  function regenerate(){
+    if(!lastUserMsg){ toast('Nothing to regenerate'); return; }
+    send(lastUserMsg);
+  }
+  function feedback(btn, dir){
+    const row = btn.closest('.msg-actions');
+    row.querySelectorAll('.act-btn').forEach(b=>b.classList.remove('active-up','active-down'));
+    btn.classList.add(dir==='up'?'active-up':'active-down');
+    toast(dir==='up'?'Thanks for the feedback! 👍':'Feedback noted 👎');
+  }
+
+  // ── Theme ────────────────────────────────────────────────────────────────
+  function toggleTheme(){
+    const cur = document.documentElement.getAttribute('data-theme');
+    const next = cur==='light' ? '' : 'light';
+    if(next) document.documentElement.setAttribute('data-theme', next);
+    else document.documentElement.removeAttribute('data-theme');
+    document.getElementById('theme-btn').textContent = next==='light' ? '☀️' : '🌙';
+    localStorage.setItem('theme', next);
+  }
+  (function initTheme(){
+    const saved = localStorage.getItem('theme');
+    if(saved==='light'){ document.documentElement.setAttribute('data-theme','light'); document.getElementById('theme-btn').textContent='☀️'; }
+  })();
+
+  // ── Export conversation ──────────────────────────────────────────────────
+  function exportChat(){
+    const wraps = [...document.querySelectorAll('.msg-wrap')];
+    if(!wraps.length){ toast('No conversation to export'); return; }
+    let md = `# ${titleEl.textContent}\n\n_Exported ${new Date().toLocaleString()}_\n\n`;
+    wraps.forEach(w=>{
+      if(w.classList.contains('user')){
+        md += `**You:** ${w.querySelector('.msg.user').textContent}\n\n`;
+      } else {
+        const body = w.querySelector('.msg.bot');
+        md += `**Assistant:** ${body.dataset.raw || body.textContent}\n\n`;
+      }
+    });
+    const blob = new Blob([md], {type:'text/markdown'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${titleEl.textContent.replace(/[^a-z0-9]+/gi,'_').slice(0,40)||'chat'}.md`;
+    a.click(); URL.revokeObjectURL(a.href);
+    toast('Conversation exported');
+  }
+
+  // ── Session search & rename ──────────────────────────────────────────────
+  function filterSessions(query){
+    const q = query.toLowerCase().trim();
+    document.querySelectorAll('.session-item').forEach(el=>{
+      const title = (el.dataset.title||'').toLowerCase();
+      el.style.display = !q || title.includes(q) ? '' : 'none';
+    });
+    document.querySelectorAll('.session-group-label').forEach(lbl=>{
+      let n=lbl.nextElementSibling, any=false;
+      while(n && n.classList.contains('session-item')){ if(n.style.display!=='none') any=true; n=n.nextElementSibling; }
+      lbl.style.display = any ? '' : 'none';
+    });
+  }
+
+  function renameSession(e, sid){
+    e.stopPropagation();
+    const item = document.querySelector(`.session-item[data-id="${sid}"]`);
+    const titleSpan = item.querySelector('.s-title');
+    const old = item.dataset.title;
+    const inp = document.createElement('input');
+    inp.className='s-rename'; inp.value=old;
+    titleSpan.replaceWith(inp); inp.focus(); inp.select();
+    const commit = async () => {
+      const val = inp.value.trim() || old;
+      await fetch(`/sessions/${sid}/rename`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:val})});
+      if(currentSid===sid) titleEl.textContent=val;
+      loadSessions();
+    };
+    inp.onkeydown = ev => { if(ev.key==='Enter') inp.blur(); if(ev.key==='Escape'){ inp.value=old; inp.blur(); } };
+    inp.onblur = commit;
   }
 
   // ── Supabase Auth ─────────────────────────────────────────────────────────

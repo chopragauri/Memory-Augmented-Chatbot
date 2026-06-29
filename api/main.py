@@ -88,6 +88,16 @@ def get_session_messages(user_id: str, session_id: str):
     return get_history(session_id)
 
 
+class RenameRequest(BaseModel):
+    title: str
+
+
+@app.post("/sessions/{session_id}/rename")
+def rename_session(session_id: str, req: RenameRequest):
+    _set_session_title(session_id, req.title)
+    return {"status": "renamed", "title": req.title[:60]}
+
+
 @app.delete("/sessions/{session_id}")
 def delete_session(session_id: str):
     _sb.table("chat_history").delete().eq("session_id", session_id).execute()
