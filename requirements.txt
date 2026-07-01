@@ -1,17 +1,25 @@
-langchain
-langchain-groq
-langchain-community
-langgraph
-faiss-cpu
-chromadb
-neo4j
-pymongo
-beautifulsoup4
-requests
-spacy
-sentence-transformers
-ragas
+# ── Core API ──────────────────────────────
 fastapi
 uvicorn
+pydantic
 python-dotenv
-tiktoken
+
+# ── LLM + orchestration ───────────────────
+groq
+langgraph
+
+# ── Retrieval (RAG) ───────────────────────
+faiss-cpu
+sentence-transformers
+numpy
+
+# ── Knowledge Graph ───────────────────────
+spacy
+networkx
+
+# ── Memory / persistence ──────────────────
+supabase
+
+# ── Data pipeline (scraping) ──────────────
+beautifulsoup4
+requests

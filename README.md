@@ -74,26 +74,89 @@ Wikipedia API scrape (15 articles)
 
 ## Setup
 
+> Requires **Python 3.10–3.12** (recommended). All commands are run from the project root.
+
+### 1. Clone & create a virtual environment
+
+**macOS / Linux**
+```bash
+git clone https://github.com/chopragauri/Memory-Augmented-Chatbot.git
+cd Memory-Augmented-Chatbot
+python3 -m venv venv
+source venv/bin/activate
+```
+
+**Windows (PowerShell)**
+```powershell
+git clone https://github.com/chopragauri/Memory-Augmented-Chatbot.git
+cd Memory-Augmented-Chatbot
+py -m venv venv
+venv\Scripts\Activate.ps1
+```
+> If PowerShell blocks the activate script, run once:
+> `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
+> (On classic Command Prompt use `venv\Scripts\activate.bat` instead.)
+
+### 2. Install dependencies + spaCy model
+
+**macOS / Linux**
 ```bash
 pip install -r requirements.txt
-python3 -m spacy download en_core_web_sm
-cp .env.example .env   # add GROQ_API_KEY, SUPABASE_URL, SUPABASE_KEY
+python -m spacy download en_core_web_sm
 ```
 
-### Run (from project root)
-```bash
-python3 -m uvicorn api.main:app --reload --port 8000
-# Open http://localhost:8000
+**Windows (PowerShell)**
+```powershell
+pip install -r requirements.txt
+python -m spacy download en_core_web_sm
 ```
 
-### Re-build data pipeline (optional — pre-built indexes included)
+### 3. Configure environment variables
+
+Create a `.env` file in the project root (copy the template):
+
+**macOS / Linux**
 ```bash
-python3 -m data_pipeline.scraper
-python3 -m data_pipeline.cleaner
-python3 -m data_pipeline.embedder
-python3 -m knowledge_graph.extractor
-python3 -m knowledge_graph.graph_store
+cp .env.example .env
 ```
+
+**Windows (PowerShell)**
+```powershell
+Copy-Item .env.example .env
+```
+
+Then open `.env` and fill in your keys:
+```
+GROQ_API_KEY=your_groq_api_key
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=your_supabase_anon_key
+```
+- **Groq key** (free): https://console.groq.com/keys
+- **Supabase** URL + anon key: Supabase dashboard → Project Settings → API
+- Create the three tables first (see [Supabase Tables Required](#supabase-tables-required) below).
+
+### 4. Run the app
+
+Same command on every OS (works because keys are loaded from `.env`):
+```bash
+python -m uvicorn api.main:app --reload --port 8000
+```
+Then open **http://localhost:8000** in your browser.
+
+> Pre-built FAISS index and Knowledge Graph are included in `data/`, so the app runs immediately — no scraping needed.
+
+### 5. (Optional) Re-build the data pipeline from scratch
+
+Run each step as a module from the project root (works on all OSes):
+```bash
+python -m data_pipeline.scraper       # scrape 15 Wikipedia articles
+python -m data_pipeline.cleaner       # clean + chunk into 163 segments
+python -m data_pipeline.embedder      # embed + build FAISS index
+python -m knowledge_graph.extractor   # spaCy triple extraction (762 triples)
+python -m knowledge_graph.graph_store # build networkx graph
+```
+
+> **Windows note:** always use `python -m module.name` (not `python data_pipeline/scraper.py`) so imports resolve correctly.
 
 ---
 
@@ -170,21 +233,69 @@ Run: `python3 -m evaluation.eval`
 
 ---
 
-## Screenshots
+## Screenshots — Annotated Walkthrough
 
-<!-- Add screenshots here after recording -->
+The four screenshots below trace the full **memory-augmented** flow:
+*login → guest use with auto-memory → sign in and see history restored → answers personalized from that memory.*
 
-### Login Screen (Google OAuth + Guest Mode)
-<!-- ![Login](assets/login.png) -->
+### 1. Authentication — Google OAuth + Guest Mode
+![Login screen](assets/01_login.png)
 
-### Chat with Pipeline Visualization
-<!-- ![Chat](assets/chat.png) -->
+Two ways in:
+- **Continue with Google** → Supabase OAuth, memory persists across devices.
+- **Continue as Guest** → instant local session, no login required.
 
-### Session History Sidebar
-<!-- ![Sessions](assets/sessions.png) -->
+---
 
-### User Memory (different accounts)
-<!-- ![Memory](assets/memory.png) -->
+### 2. Guest Session — Live Pipeline + Automatic Memory Extraction
+![Guest chat](assets/02_guest_chat.png)
 
-### Evaluation Results
-<!-- ![Eval](assets/eval.png) -->
+- **Bottom-left badge "GU · Guest session"** — this is the guest path in use.
+- The user typed *"hi im a data science intern at celebal tech…"* and the **USER MEMORY** panel auto-filled with *"User works at Celebal Tech"* and *"User is a data science intern"* — facts are **automatically extracted after each turn** and saved to Supabase.
+- **Right panel** shows the full pipeline in action:
+  - **Pipeline** — the 4-node LangGraph flow (Memory → RAG → KG → LLM)
+  - **Retrieval Quality** — live cosine-similarity Relevance/Recall
+  - **Knowledge Graph** — networkx triples (`RNN —[be]→ neuroscience`)
+  - **"5 sources used"** — FAISS vector retrieval
+
+---
+
+### 3. Google Sign-In — Persisted History & Long-Term Memory
+![Signed-in with history](assets/03_google_history.png)
+
+- **Bottom-left "Gauri Chopra · Signed in with Google"** — OAuth path in use.
+- **Left sidebar (EARLIER: "How do transformers…", "What is RAG?" — 27 Jun)** — past sessions **reloaded from Supabase**, proving persistence across days and devices.
+- **USER MEMORY** is already populated (*research student, Amity University…*) from earlier sessions — **long-term memory survives logout/login**.
+
+---
+
+### 4. Memory-Augmented Generation — Personalized Answer
+![Personalized answer](assets/04_personalized_answer.png)
+
+- The answer to *"Explain GANs"* weaves in stored facts it was **never told in this conversation**:
+  > *"As a research student studying transformers and attention mechanisms at Amity University, you may find GANs…"*
+
+  This is the core proof that **stored memory actually influences generation**.
+- **Message actions** row (copy · regenerate · 👍 · 👎) and session grouping (Today / Earlier) are visible.
+
+---
+
+## Supabase — Data Persistence (Backend Proof)
+
+These confirm the UI claims are backed by real database rows:
+
+### user_memory table — auto-extracted facts per user
+![Supabase user_memory](assets/sb_user_memory.png)
+> Rows keyed by `user_id` (a `guest_…` id and the Google UUID), each holding `facts` / `preferences` JSON — backs the **USER MEMORY** chips.
+
+### sessions table — session history
+![Supabase sessions](assets/sb_sessions.png)
+> `id`, `user_id`, `title`, `updated_at` — backs the **left-sidebar session list**.
+
+### chat_history table — stored conversation turns
+![Supabase chat_history](assets/sb_chat_history.png)
+> `session_id`, `role`, `content` — backs the **chat bubbles** when a session is reloaded.
+
+### Authentication → Users — Google OAuth working
+![Supabase auth users](assets/sb_auth_users.png)
+> The Google account listed with provider `google` — proves end-to-end OAuth sign-in.
