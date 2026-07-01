@@ -282,20 +282,18 @@ Two ways in:
 
 ## Supabase — Data Persistence (Backend Proof)
 
-These confirm the UI claims are backed by real database rows:
+These confirm the UI claims are backed by real database rows.
 
-### user_memory table — auto-extracted facts per user
-![Supabase user_memory](assets/sb_user_memory.png)
-> Rows keyed by `user_id` (a `guest_…` id and the Google UUID), each holding `facts` / `preferences` JSON — backs the **USER MEMORY** chips.
+### A. Schema — the three tables behind memory, history & sessions
+![Supabase schema](assets/sb_schema.png)
+> - `user_memory` — `facts` + `preferences` JSON per `user_id` (backs the **USER MEMORY** chips)
+> - `chat_history` — `session_id`, `user_id`, `role`, `content` (backs the **chat bubbles**)
+> - `sessions` — `title` + timestamps (backs the **left-sidebar session list**)
 
-### sessions table — session history
-![Supabase sessions](assets/sb_sessions.png)
-> `id`, `user_id`, `title`, `updated_at` — backs the **left-sidebar session list**.
-
-### chat_history table — stored conversation turns
+### B. chat_history — real stored conversation turns
 ![Supabase chat_history](assets/sb_chat_history.png)
-> `session_id`, `role`, `content` — backs the **chat bubbles** when a session is reloaded.
+> 36 persisted turns across multiple sessions. Note the two `user_id` formats: the guest-era `gauri` and the Google UUID `98abe39e-…` — the same id that appears in the Auth table below, tying memory to the signed-in account.
 
-### Authentication → Users — Google OAuth working
+### C. Authentication → Users — Google OAuth working for multiple accounts
 ![Supabase auth users](assets/sb_auth_users.png)
-> The Google account listed with provider `google` — proves end-to-end OAuth sign-in.
+> Two real Google accounts signed in via provider **Google (Social)** — proving the published OAuth works end-to-end. The UID `98abe39e-…` matches the `user_id` in `chat_history`.
