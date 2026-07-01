@@ -69,6 +69,8 @@ Wikipedia API scrape (15 articles)
 - **Pipeline visualization**: Real-time 4-step animation (Memory → RAG → KG → LLM)
 - **Retrieval metrics**: Cosine-similarity-based Relevance and Recall shown per response
 - **Domain-specific**: Trained knowledge base on ML/AI Wikipedia corpus
+- **Export & message actions**: Download any conversation as Markdown; copy / regenerate / rate individual replies
+- **Streaming, themes & search**: Typewriter streaming with Stop, light/dark theme toggle, and session search + inline rename
 
 ---
 
@@ -277,6 +279,16 @@ Two ways in:
 
   This is the core proof that **stored memory actually influences generation**.
 - **Message actions** row (copy · regenerate · 👍 · 👎) and session grouping (Today / Earlier) are visible.
+
+---
+
+### 5. Export & Copy — take the conversation with you
+![Export to Markdown](assets/05_export.png)
+
+- ① **Export button** (top bar) downloads the entire conversation as a Markdown file.
+- ② **Per-message copy** button copies a single reply.
+
+See a real exported file here: [`assets/sample_export_Explain_GANs.md`](assets/sample_export_Explain_GANs.md) — a full "Explain GANs" conversation exported straight from the UI.
 
 ---
 
